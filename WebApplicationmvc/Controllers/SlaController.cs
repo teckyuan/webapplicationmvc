@@ -1,6 +1,10 @@
-﻿using NLog;
+﻿using Microsoft.AspNet.Identity;
+using NLog;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Data;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -30,20 +34,34 @@ namespace WebApplicationmvc.Controllers
         [AllowAnonymous]
         public async Task<ActionResult> sla(SLABE model)
         {
+            var userid =User.Identity.GetUserId();
+
+            object result = null;
+            string connStr = ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString;
+            SqlConnection conn = new SqlConnection(connStr);
+
             try
             {
-                using (HttpClient httpClient = new HttpClient())
-                {
-                    var response = await httpClient.GetAsync("www.yahoo.com");
-                    return Json(await response.Content.ReadAsStringAsync());
-                }
+                SqlCommand cmd = new SqlCommand("[dbo].[uspInsertSLA]", conn);
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@DESCRIPTION", model.desc);
+                cmd.Parameters.AddWithValue("@SLADAYS", model.sladays);
+                cmd.Parameters.AddWithValue("@createdby", userid);
+
+                conn.Open();
+                result = cmd.ExecuteScalarAsync().Result;
+
             }
             catch (Exception ex)
             {
                 logger.Info(ex);
             }
+            finally
+            {
+                conn.Close();
+            }
 
-            return Json("Error Occured!");
+            return Json(result);
         }
         // If we got this far, something failed, redisplay form
     }
